@@ -26,4 +26,4 @@ Descriptive analytics. No predictive model is used.
 - `assets/`: logos
 
 ## Author
-YOUR NAME, LabMatics internship project
+Vipsa Patel, LabMatics internship project

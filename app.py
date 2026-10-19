@@ -56,19 +56,23 @@ header[data-testid="stHeader"] { background: transparent; }
 
 /* tabs */
 .stTabs [data-baseweb="tab-list"] { gap:8px; flex-wrap:wrap; }
-.stTabs [data-baseweb="tab"] { background:#F7DED9; border-radius:999px; padding:8px 18px; height:auto; font-weight:600; }
-.stTabs [aria-selected="true"] { background:#111; }
-.stTabs [aria-selected="true"] p { color:#EBB7B0 !important; }
+.stTabs [data-baseweb="tab"], .stTabs button[role="tab"], .stTabs [data-testid="stTab"] { background:#F7DED9; border-radius:999px; padding:8px 18px; height:auto; font-weight:600; }
+.stTabs .react-aria-SelectionIndicator { display:none !important; }
+.stTabs [aria-selected="true"] { background:#111 !important; }
+.stTabs [aria-selected="true"] p, .stTabs [aria-selected="true"] span { color:#EBB7B0 !important; }
 .stTabs [data-baseweb="tab-highlight"], .stTabs [data-baseweb="tab-border"] { display:none; }
 
 /* sidebar */
 section[data-testid="stSidebar"] { border-right:3px solid #111; }
-.side-logo { text-align:center; margin:4px 0 6px 0; }
-.side-logo img { width:92px; }
-.side-title { text-align:center; font-weight:800; letter-spacing:3px; font-size:0.85rem; margin-bottom:14px; }
+.side-head { display:flex; align-items:center; gap:14px; margin:0 0 2px 0; }
+.side-head img { width:58px; }
+.side-head span { font-weight:800; letter-spacing:4px; font-size:1rem; }
+/* calendar pop-up: never taller than the window, scrolls if the window is short */
+div[data-baseweb="popover"]:has([data-baseweb="calendar"]) { max-height: 88vh; overflow-y: auto; }
 .flabel { font-weight:700; font-size:0.92rem; margin:14px 0 4px 0; }
-button[data-testid^="stBaseButton-pills"] { border:1.5px solid #111 !important; border-radius:999px !important; }
-button[data-testid="stBaseButton-pillsActive"] { background:#111 !important; color:#EBB7B0 !important; }
+button[data-testid^="stBaseButton-pills"], button[data-variant="pills"] { border:1.5px solid #111 !important; border-radius:999px !important; }
+button[data-testid="stBaseButton-pillsActive"], button[data-variant="pills"][aria-checked="true"] { background:#111 !important; color:#EBB7B0 !important; }
+button[data-testid="stBaseButton-pillsActive"] p, button[data-variant="pills"][aria-checked="true"] p { color:#EBB7B0 !important; }
 
 /* KPI cards */
 .kpi { background:#fff; border-radius:20px; padding:16px 18px; box-shadow:0 4px 14px rgba(17,17,17,.08);
@@ -151,6 +155,10 @@ def style_fig(fig, height=360):
     )
     fig.update_xaxes(gridcolor="#EADBD7")
     fig.update_yaxes(gridcolor="#EADBD7")
+    fig.update_traces(textangle=0, selector=dict(type="bar"))
+    # numbers above bars: remove horizontal gridlines so no line runs through a number
+    if any(t.type == "bar" and getattr(t, "textposition", None) == "outside" for t in fig.data):
+        fig.update_yaxes(showgrid=False)
     return fig
 
 
@@ -181,14 +189,14 @@ if "f_dates" not in st.session_state:
 
 with st.sidebar:
     st.markdown(
-        f"""<div class="side-logo"><img src="data:image/png;base64,{img_b64('sugar_logo_black.png')}"/></div>
-<div class="side-title">FILTERS</div>""",
+        f"""<div class="side-head"><img src="data:image/png;base64,{img_b64('sugar_logo_black.png')}"/>
+<span>FILTERS</span></div>""",
         unsafe_allow_html=True,
     )
 
     st.markdown('<div class="flabel">📅 Posting period</div>', unsafe_allow_html=True)
-    date_val = st.slider("Posting period", min_value=MIN_D, max_value=MAX_D,
-                         key="f_dates", format="DD MMM YY", label_visibility="collapsed")
+    date_val = st.date_input("Posting period", min_value=MIN_D, max_value=MAX_D,
+                             key="f_dates", label_visibility="collapsed")
 
     st.markdown('<div class="flabel">🎬 Format</div>', unsafe_allow_html=True)
     sel_format = st.pills("Format", list(FORMAT_ICON), selection_mode="multi", key="f_format",
@@ -276,7 +284,7 @@ def er_bar(g, xcol, title, order=None, height=380):
     fig = px.bar(g, x=xcol, y="mean", error_y="margin", text=g["mean"].round(2), title=title,
                  category_orders={xcol: order} if order else None)
     fig.update_traces(marker_color=PINK, marker_line_color=BLACK, marker_line_width=1,
-                      textposition="inside", insidetextanchor="middle", error_y_color=BLACK)
+                      textposition="inside", insidetextanchor="middle", textangle=0, error_y_color=BLACK)
     fig.add_hline(y=BASE_ER, line_dash="dash", line_color=DEEP_PINK,
                   annotation_text=f"overall {BASE_ER:.2f}%", annotation_position="top left")
     fig.update_yaxes(range=[0, 26], title="Average engagement rate (%)")
@@ -564,9 +572,16 @@ with tabs[3]:
                  title="Average interactions per post (each chart has its own scale)")
     fig.update_yaxes(matches=None, showticklabels=True, rangemode="tozero", title=None)
     fig.update_xaxes(title=None, showticklabels=False)
-    fig.update_traces(texttemplate="%{text:,.0f}", textposition="inside", insidetextanchor="end",
-                      textfont=dict(size=13))
-    fig.update_layout(legend_title=None, legend=dict(orientation="h", y=-0.1))
+    fig.update_traces(texttemplate="%{text:,.0f}", textposition="outside", textangle=0,
+                      textfont=dict(size=11), cliponaxis=False)
+    fig.update_layout(legend_title=None, legend=dict(orientation="h", y=-0.1), bargap=0.08)
+    ymax = {}
+    for tr in fig.data:
+        key = tr.yaxis or "y"
+        ymax[key] = max(ymax.get(key, 0), float(np.max(tr.y)))
+    for key, top_val in ymax.items():
+        axis_name = "yaxis" if key == "y" else "yaxis" + key[1:]
+        fig.layout[axis_name].range = [0, top_val * 1.3]
     fig.for_each_annotation(lambda a: a.update(text=a.text.split("=")[-1]))
     r.plotly_chart(style_fig(fig, 520), width="stretch")
 

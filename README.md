@@ -1,5 +1,7 @@
 # Insta Sugar Intelligence
 
+**Live app:** https://insta-sugar-intelligence.streamlit.app/
+
 Instagram performance analytics for Sugar Cosmetics, built with Python and Streamlit.
 
 ## What this project does

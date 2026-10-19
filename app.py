@@ -2,9 +2,6 @@
 # Insta Sugar Intelligence  |  Streamlit app  |  Full app
 # Page design, logo, sidebar filters and all 8 tabs
 # ---------------------------------------------------------------
-
-**Live app:** https://insta-sugar-intelligence.streamlit.app/
-
 import base64
 import re
 from pathlib import Path
